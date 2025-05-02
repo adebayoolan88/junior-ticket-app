@@ -5,20 +5,26 @@ const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ✅ Allow your frontend to access the backend
+app.use(cors({
+  origin: 'https://junior-ticket-ui.vercel.app'
+}));
+
+app.use(bodyParser.json());
 
 const CSV_PATH = path.join(__dirname, 'players.csv');
 let pendingSubmissions = [];
 
-app.use(bodyParser.json());
-
-// CSV fallback
+// ✅ Ensure CSV file exists
 if (!fs.existsSync(CSV_PATH)) {
   fs.writeFileSync(CSV_PATH, 'Name,JuniorTickets\n', 'utf8');
 }
 
-// Submit
+// ✅ Submit action (pending approval)
 app.post('/submit', (req, res) => {
   const { name, action } = req.body;
   pendingSubmissions.push({ name, action });
@@ -26,7 +32,7 @@ app.post('/submit', (req, res) => {
   res.send('Submission received and pending approval.');
 });
 
-// Approve
+// ✅ Approve action
 app.post('/approve', (req, res) => {
   const { name } = req.body;
   const index = pendingSubmissions.findIndex(s => s.name === name);
@@ -36,7 +42,7 @@ app.post('/approve', (req, res) => {
   res.send('Submission approved.');
 });
 
-// Deduct
+// ✅ Deduct ticket
 app.post('/deduct', (req, res) => {
   const { name } = req.body;
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
@@ -57,7 +63,7 @@ app.post('/deduct', (req, res) => {
   res.send(`1 ticket deducted from ${name}.`);
 });
 
-// Leaderboard
+// ✅ Leaderboard data
 app.get('/leaderboard', (req, res) => {
   const raw = fs.readFileSync(CSV_PATH, 'utf8');
   const lines = raw.trim().split('\n').slice(1);
@@ -68,7 +74,12 @@ app.get('/leaderboard', (req, res) => {
   res.json(data);
 });
 
-// Helpers
+// ✅ Optional: confirm backend is running
+app.get('/', (req, res) => {
+  res.send('Junior Ticket API is running.');
+});
+
+// ✅ Helper to update CSV
 function updateCSV(name) {
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
   let found = false;
@@ -85,6 +96,7 @@ function updateCSV(name) {
   fs.writeFileSync(CSV_PATH, updated.join('\n'), 'utf8');
 }
 
+// ✅ Helper to send email
 function sendEmail(name, action) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -107,6 +119,7 @@ function sendEmail(name, action) {
   });
 }
 
+// ✅ Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
