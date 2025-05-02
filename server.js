@@ -5,28 +5,19 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const CSV_PATH = path.join(__dirname, 'players.csv');
-const FRONTEND_PATH = path.join(__dirname, 'junior-ticket-ui');
 let pendingSubmissions = [];
 
 app.use(bodyParser.json());
 
-// Serve landing page first
-app.get('/', (req, res) => {
-  res.sendFile(path.join(FRONTEND_PATH, 'intro.html'));
-});
-
-// Serve static frontend assets
-app.use(express.static(FRONTEND_PATH));
-
-// Ensure CSV exists
+// CSV fallback
 if (!fs.existsSync(CSV_PATH)) {
   fs.writeFileSync(CSV_PATH, 'Name,JuniorTickets\n', 'utf8');
 }
 
-// Submission
+// Submit
 app.post('/submit', (req, res) => {
   const { name, action } = req.body;
   pendingSubmissions.push({ name, action });
@@ -76,11 +67,10 @@ app.get('/leaderboard', (req, res) => {
   res.json(data);
 });
 
-// Helper: Update CSV
+// Helpers
 function updateCSV(name) {
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
   let found = false;
-
   const updated = lines.map((line, idx) => {
     if (idx === 0) return line;
     const [player, tickets] = line.split(',');
@@ -90,12 +80,10 @@ function updateCSV(name) {
     }
     return line;
   });
-
   if (!found) updated.push(`${name},1`);
   fs.writeFileSync(CSV_PATH, updated.join('\n'), 'utf8');
 }
 
-// Helper: Email
 function sendEmail(name, action) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -109,7 +97,7 @@ function sendEmail(name, action) {
     from: process.env.GMAIL_USER,
     to: process.env.GMAIL_USER,
     subject: 'New Junior Ticket Submission',
-    text: `Player: ${name}\nAction: ${action}\nApprove via /approve endpoint`
+    text: `Player: ${name}\nAction: ${action}`
   };
 
   transporter.sendMail(mailOptions, (err, info) => {
@@ -119,5 +107,5 @@ function sendEmail(name, action) {
 }
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
