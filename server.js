@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
@@ -8,10 +7,21 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ CORS: Allow your Vercel frontend
-app.use(cors({
-  origin: 'https://junior-ticket-ui.vercel.app'
-}));
+// ✅ Custom CORS: allow vercel + local file access
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://junior-ticket-ui.vercel.app',
+    'null' // for local approve.html via file://
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -23,7 +33,7 @@ if (!fs.existsSync(CSV_PATH)) {
   fs.writeFileSync(CSV_PATH, 'Name,JuniorTickets\n', 'utf8');
 }
 
-// ROUTES
+// Routes
 app.get('/', (req, res) => {
   res.send('Junior Ticket API is running.');
 });
@@ -75,6 +85,7 @@ app.post('/deduct', (req, res) => {
   res.send(`1 ticket deducted from ${name}.`);
 });
 
+// Helpers
 function updateCSV(name) {
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
   let found = false;
