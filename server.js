@@ -7,11 +7,11 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Custom CORS: allow vercel + local file access
+// ✅ CORS setup
 app.use((req, res, next) => {
   const allowedOrigins = [
     'https://junior-ticket-ui.vercel.app',
-    'null' // for local approve.html via file://
+    'null' // for local file:// approve.html
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -26,17 +26,13 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ Basic auth for /admin
 const basicAuth = require('express-basic-auth');
-
-// ✅ Protect access to the /admin route
 app.use('/admin', basicAuth({
   users: { 'admin': process.env.APPROVE_PASSWORD },
   challenge: true
 }));
-
-// ✅ Serve approve.html securely from /admin
 app.use('/admin', express.static(path.join(__dirname, 'public')));
-
 
 const CSV_PATH = path.join(__dirname, 'players.csv');
 let pendingSubmissions = [];
@@ -45,7 +41,8 @@ if (!fs.existsSync(CSV_PATH)) {
   fs.writeFileSync(CSV_PATH, 'Name,JuniorTickets\n', 'utf8');
 }
 
-// Routes
+// ROUTES
+
 app.get('/', (req, res) => {
   res.send('Junior Ticket API is running.');
 });
@@ -72,33 +69,29 @@ app.post('/approve', (req, res) => {
   const { name } = req.body;
   const index = pendingSubmissions.findIndex(s => s.name === name);
   if (index === -1) return res.status(404).send('Submission not found.');
-  updateCSV(name);
+  updateCSV(name, 1);
   pendingSubmissions.splice(index, 1);
   res.send('Submission approved.');
 });
 
 app.post('/deduct', (req, res) => {
   const { name } = req.body;
-  const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
-  let found = false;
-
-  const updated = lines.map((line, idx) => {
-    if (idx === 0) return line;
-    const [player, tickets] = line.split(',');
-    if (player === name) {
-      found = true;
-      return `${player},${Math.max(parseInt(tickets) - 1, 0)}`;
-    }
-    return line;
-  });
-
-  if (!found) return res.status(404).send('Player not found.');
-  fs.writeFileSync(CSV_PATH, updated.join('\n'), 'utf8');
-  res.send(`1 ticket deducted from ${name}.`);
+  updateCSV(name, -1, res);
 });
 
-// Helpers
-function updateCSV(name) {
+// ✅ New: manually add tickets
+app.post('/add-tickets', (req, res) => {
+  const { name, amount } = req.body;
+  const ticketCount = parseInt(amount);
+  if (!name || isNaN(ticketCount) || ticketCount <= 0) {
+    return res.status(400).send('Invalid name or ticket amount.');
+  }
+  updateCSV(name, ticketCount, res);
+});
+
+// HELPERS
+
+function updateCSV(name, delta, res = null) {
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
   let found = false;
   const updated = lines.map((line, idx) => {
@@ -106,12 +99,16 @@ function updateCSV(name) {
     const [player, tickets] = line.split(',');
     if (player === name) {
       found = true;
-      return `${player},${parseInt(tickets) + 1}`;
+      return `${player},${Math.max(parseInt(tickets) + delta, 0)}`;
     }
     return line;
   });
-  if (!found) updated.push(`${name},1`);
+  if (!found && delta > 0) updated.push(`${name},${delta}`);
   fs.writeFileSync(CSV_PATH, updated.join('\n'), 'utf8');
+
+  if (res) {
+    res.send(`${Math.max(delta, 0)} ticket(s) ${delta > 0 ? 'added to' : 'deducted from'} ${name}.`);
+  }
 }
 
 function sendEmail(name, action) {

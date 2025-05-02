@@ -164,5 +164,38 @@
 
     window.onload = loadLeaderboard;
   </script>
+  <div class="card">
+    <h2>Manually Add Tickets</h2>
+    <input id="addName" type="text" placeholder="Enter player name">
+    <input id="addAmount" type="number" min="1" placeholder="Tickets to add">
+    <button onclick="addTickets()">Add Tickets</button>
+    <div id="addResult"></div>
+  </div>
+  
+  <script>
+    async function addTickets() {
+      const name = document.getElementById('addName').value.trim();
+      const amount = document.getElementById('addAmount').value.trim();
+  
+      if (!name || !amount) {
+        document.getElementById('addResult').textContent = 'Enter both name and amount.';
+        return;
+      }
+  
+      try {
+        const res = await fetch(`${backendURL}/add-tickets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, amount })
+        });
+        const text = await res.text();
+        document.getElementById('addResult').textContent = text;
+        loadLeaderboard(); // refresh
+      } catch (e) {
+        document.getElementById('addResult').textContent = 'Error adding tickets.';
+        console.error(e);
+      }
+    }
+  </script>
 </body>
 </html>
