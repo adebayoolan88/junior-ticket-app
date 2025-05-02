@@ -1,38 +1,37 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Allow your frontend to access the backend
-app.use(cors({
-  origin: 'https://junior-ticket-ui.vercel.app'
-}));
+// ✅ CORS open for testing
+app.use(cors()); // Later: restrict to { origin: 'https://junior-ticket-ui.vercel.app' }
 
-app.use(bodyParser.json());
+app.use(express.json()); // replaces bodyParser.json()
 
 const CSV_PATH = path.join(__dirname, 'players.csv');
 let pendingSubmissions = [];
 
-// ✅ Ensure CSV file exists
+// ✅ Ensure CSV exists
 if (!fs.existsSync(CSV_PATH)) {
   fs.writeFileSync(CSV_PATH, 'Name,JuniorTickets\n', 'utf8');
 }
 
-// ✅ Submit action (pending approval)
+// ✅ Submit action
 app.post('/submit', (req, res) => {
   const { name, action } = req.body;
+  if (!name || !action) return res.status(400).send('Missing name or action.');
+
   pendingSubmissions.push({ name, action });
   sendEmail(name, action);
   res.send('Submission received and pending approval.');
 });
 
-// ✅ Approve action
+// ✅ Approve
 app.post('/approve', (req, res) => {
   const { name } = req.body;
   const index = pendingSubmissions.findIndex(s => s.name === name);
@@ -42,7 +41,7 @@ app.post('/approve', (req, res) => {
   res.send('Submission approved.');
 });
 
-// ✅ Deduct ticket
+// ✅ Deduct
 app.post('/deduct', (req, res) => {
   const { name } = req.body;
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
@@ -63,7 +62,7 @@ app.post('/deduct', (req, res) => {
   res.send(`1 ticket deducted from ${name}.`);
 });
 
-// ✅ Leaderboard data
+// ✅ Leaderboard
 app.get('/leaderboard', (req, res) => {
   const raw = fs.readFileSync(CSV_PATH, 'utf8');
   const lines = raw.trim().split('\n').slice(1);
@@ -74,12 +73,12 @@ app.get('/leaderboard', (req, res) => {
   res.json(data);
 });
 
-// ✅ Optional: confirm backend is running
+// ✅ Root route
 app.get('/', (req, res) => {
   res.send('Junior Ticket API is running.');
 });
 
-// ✅ Helper to update CSV
+// 🔧 Helpers
 function updateCSV(name) {
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
   let found = false;
@@ -96,7 +95,6 @@ function updateCSV(name) {
   fs.writeFileSync(CSV_PATH, updated.join('\n'), 'utf8');
 }
 
-// ✅ Helper to send email
 function sendEmail(name, action) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
