@@ -26,6 +26,18 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const basicAuth = require('express-basic-auth');
+
+// ✅ Protect access to the /admin route
+app.use('/admin', basicAuth({
+  users: { 'admin': process.env.APPROVE_PASSWORD },
+  challenge: true
+}));
+
+// ✅ Serve approve.html securely from /admin
+app.use('/admin', express.static(path.join(__dirname, 'public')));
+
+
 const CSV_PATH = path.join(__dirname, 'players.csv');
 let pendingSubmissions = [];
 

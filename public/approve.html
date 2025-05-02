@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Approve Submissions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Orbitron', sans-serif;
+      background-color: #000000;
+      color: #d4af37;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+
+    .logo {
+      width: 300px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #1e1e1e;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      width: 320px;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    input {
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: #f1f1f1;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #d4af37;
+      color: #1e1e1e;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    #result, #deductResult {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #f1f1f1;
+    }
+  </style>
+</head>
+<body>
+
+  <img src="logo-main.png" alt="Junior Tickets" class="logo" />
+
+  <div class="card">
+    <h2>Approve Player Submission</h2>
+    <input id="name" type="text" placeholder="Enter player name to approve">
+    <button onclick="approve()">Approve</button>
+    <div id="result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Deduct Player Ticket</h2>
+    <input id="deductName" type="text" placeholder="Enter player name to deduct">
+    <button onclick="deduct()">Deduct</button>
+    <div id="deductResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Current Leaderboard</h2>
+    <table id="leaderboardTable" style="width:100%; color: #f1f1f1; text-align:left;">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Tickets</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const backendURL = 'https://junior-ticket-app-production.up.railway.app';
+
+    async function approve() {
+      const name = document.getElementById('name').value.trim();
+      if (!name) {
+        document.getElementById('result').textContent = 'Please enter a player name.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${backendURL}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const text = await res.text();
+        document.getElementById('result').textContent = text;
+        loadLeaderboard(); // Refresh leaderboard after approval
+      } catch (e) {
+        document.getElementById('result').textContent = 'Error approving submission.';
+        console.error(e);
+      }
+    }
+
+    async function deduct() {
+      const name = document.getElementById('deductName').value.trim();
+      if (!name) {
+        document.getElementById('deductResult').textContent = 'Please enter a player name.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${backendURL}/deduct`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const text = await res.text();
+        document.getElementById('deductResult').textContent = text;
+        loadLeaderboard(); // Refresh leaderboard after deduction
+      } catch (e) {
+        document.getElementById('deductResult').textContent = 'Error deducting ticket.';
+        console.error(e);
+      }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch(`${backendURL}/leaderboard`);
+        const players = await res.json();
+        const tbody = document.querySelector('#leaderboardTable tbody');
+        tbody.innerHTML = '';
+        players.forEach(p => {
+          const row = `<tr><td>${p.name}</td><td>${p.tickets}</td></tr>`;
+          tbody.innerHTML += row;
+        });
+      } catch (e) {
+        console.error('Failed to load leaderboard.', e);
+      }
+    }
+
+    window.onload = loadLeaderboard;
+  </script>
+</body>
+</html>
