@@ -89,6 +89,15 @@ app.post('/add-tickets', (req, res) => {
   updateCSV(name, ticketCount, res);
 });
 
+app.post('/deduct-tickets', (req, res) => {
+    const { name, amount } = req.body;
+    const ticketCount = parseInt(amount);
+    if (!name || isNaN(ticketCount) || ticketCount <= 0) {
+      return res.status(400).send('Invalid name or ticket amount.');
+    }
+    updateCSV(name, -ticketCount, res);
+  });
+  
 // HELPERS
 
 function updateCSV(name, delta, res = null) {

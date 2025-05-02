@@ -197,5 +197,38 @@
       }
     }
   </script>
+  <div class="card">
+    <h2>Manually Deduct Tickets</h2>
+    <input id="deductManualName" type="text" placeholder="Enter player name">
+    <input id="deductManualAmount" type="number" min="1" placeholder="Tickets to deduct">
+    <button onclick="deductManual()">Deduct Tickets</button>
+    <div id="deductManualResult"></div>
+  </div>
+  <script>
+    async function deductManual() {
+      const name = document.getElementById('deductManualName').value.trim();
+      const amount = document.getElementById('deductManualAmount').value.trim();
+  
+      if (!name || !amount) {
+        document.getElementById('deductManualResult').textContent = 'Enter both name and amount.';
+        return;
+      }
+  
+      try {
+        const res = await fetch(`${backendURL}/deduct-tickets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, amount })
+        });
+        const text = await res.text();
+        document.getElementById('deductManualResult').textContent = text;
+        loadLeaderboard(); // refresh view
+      } catch (e) {
+        document.getElementById('deductManualResult').textContent = 'Error deducting tickets.';
+        console.error(e);
+      }
+    }
+  </script>
+  
 </body>
 </html>
