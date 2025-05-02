@@ -3,15 +3,19 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
+const basicAuth = require('express-basic-auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const CSV_PATH = path.join(__dirname, 'players.csv');
+let pendingSubmissions = [];
 
-// ✅ CORS setup
+// ✅ CORS middleware for frontend and local access
 app.use((req, res, next) => {
   const allowedOrigins = [
     'https://junior-ticket-ui.vercel.app',
-    'null' // for local file:// approve.html
+    'null'
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -26,22 +30,28 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Basic auth for /admin
-const basicAuth = require('express-basic-auth');
+// ✅ Basic auth for admin interface
 app.use('/admin', basicAuth({
   users: { 'admin': process.env.APPROVE_PASSWORD },
   challenge: true
 }));
 app.use('/admin', express.static(path.join(__dirname, 'public')));
 
-const CSV_PATH = path.join(__dirname, 'players.csv');
-let pendingSubmissions = [];
+// ✅ Rate limiting for /submit (5 submissions/hour per IP)
+const submissionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: 'Too many submissions from this device. Try again in an hour.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
+// ✅ Create CSV file if not present
 if (!fs.existsSync(CSV_PATH)) {
   fs.writeFileSync(CSV_PATH, 'Name,JuniorTickets\n', 'utf8');
 }
 
-// ROUTES
+// ✅ Routes
 
 app.get('/', (req, res) => {
   res.send('Junior Ticket API is running.');
@@ -57,7 +67,7 @@ app.get('/leaderboard', (req, res) => {
   res.json(data);
 });
 
-app.post('/submit', (req, res) => {
+app.post('/submit', submissionLimiter, (req, res) => {
   const { name, action } = req.body;
   if (!name || !action) return res.status(400).send('Missing fields.');
   pendingSubmissions.push({ name, action });
@@ -79,7 +89,6 @@ app.post('/deduct', (req, res) => {
   updateCSV(name, -1, res);
 });
 
-// ✅ New: manually add tickets
 app.post('/add-tickets', (req, res) => {
   const { name, amount } = req.body;
   const ticketCount = parseInt(amount);
@@ -90,15 +99,15 @@ app.post('/add-tickets', (req, res) => {
 });
 
 app.post('/deduct-tickets', (req, res) => {
-    const { name, amount } = req.body;
-    const ticketCount = parseInt(amount);
-    if (!name || isNaN(ticketCount) || ticketCount <= 0) {
-      return res.status(400).send('Invalid name or ticket amount.');
-    }
-    updateCSV(name, -ticketCount, res);
-  });
-  
-// HELPERS
+  const { name, amount } = req.body;
+  const ticketCount = parseInt(amount);
+  if (!name || isNaN(ticketCount) || ticketCount <= 0) {
+    return res.status(400).send('Invalid name or ticket amount.');
+  }
+  updateCSV(name, -ticketCount, res);
+});
+
+// ✅ Helpers
 
 function updateCSV(name, delta, res = null) {
   const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
