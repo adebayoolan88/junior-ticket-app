@@ -8,10 +8,14 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ CORS open for testing
-app.use(cors()); // Later: restrict to { origin: 'https://junior-ticket-ui.vercel.app' }
+app.use(cors({
+    origin: ['https://junior-ticket-ui.vercel.app', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+  }));
 
 app.use(express.json()); // replaces bodyParser.json()
+app.use(express.urlencoded({ extended: true })); // replaces bodyParser.urlencoded()
 
 const CSV_PATH = path.join(__dirname, 'players.csv');
 let pendingSubmissions = [];
