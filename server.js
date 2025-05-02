@@ -107,6 +107,26 @@ app.post('/deduct-tickets', (req, res) => {
   updateCSV(name, -ticketCount, res);
 });
 
+app.post('/remove-player', (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).send('Name is required.');
+  
+    const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split('\n');
+    const filtered = lines.filter((line, idx) => {
+      if (idx === 0) return true; // keep header
+      const [player] = line.split(',');
+      return player !== name;
+    });
+  
+    if (filtered.length === lines.length) {
+      return res.status(404).send(`Player '${name}' not found.`);
+    }
+  
+    fs.writeFileSync(CSV_PATH, filtered.join('\n'), 'utf8');
+    res.send(`Player '${name}' has been removed.`);
+  });
+  
+
 // ✅ Helpers
 
 function updateCSV(name, delta, res = null) {

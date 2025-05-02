@@ -230,5 +230,46 @@
     }
   </script>
   
+
+
+
+
+
+
+  <div class="card">
+    <h2>Remove Player</h2>
+    <input id="removeName" type="text" placeholder="Enter player name to remove">
+    <button onclick="removePlayer()">Remove Player</button>
+    <div id="removeResult"></div>
+  </div>
+  <script>
+    async function removePlayer() {
+      const name = document.getElementById('removeName').value.trim();
+      if (!name) {
+        document.getElementById('removeResult').textContent = 'Enter a player name.';
+        return;
+      }
+  
+      try {
+        const res = await fetch(`${backendURL}/remove-player`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const text = await res.text();
+        document.getElementById('removeResult').textContent = text;
+        loadLeaderboard(); // refresh table
+      } catch (e) {
+        document.getElementById('removeResult').textContent = 'Error removing player.';
+        console.error(e);
+      }
+    }
+  </script>
+  
+
+  
+
+
+  
 </body>
 </html>
